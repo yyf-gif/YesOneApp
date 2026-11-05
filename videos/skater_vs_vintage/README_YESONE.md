@@ -7,6 +7,7 @@ Same video as Streetwear vs Preppy (same timeline + sound), new outfits:
   vintage = both hands in the jacket pockets, belt showing between the jacket fronts.
 - Necks: like the original art, the inside of each collar is painted as the grey stick-figure neck (tools/neck.py).
 - Glow: a soft colour glow around each fit (GLOW_L neon pink / GLOW_R warm amber), it builds up as pieces go on.
+- Step forward: as the curtain rises the models move down onto the front of the floor and scale up (FWD_S, FWD_DY in animate.py).
 - Background: art_src/5.webp mirrored so the skate park is on the left -> bg_left.png / bg_right.png.
 
 Render:

@@ -1888,6 +1888,14 @@ BURST = [(rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(180, 620), rng.uni
 layer = skia.Surface(W, H); small = skia.Surface(W // 4, H // 4); med = skia.Surface(W // 2, H // 2)
 tsurf = skia.Surface(W, H); main = skia.Surface(W, H); msurf = skia.Surface(W, H)
 
+FWD_S, FWD_DY = 1.25, 200       # final scale + how far down the floor the models end up (feet at F + FWD_DY)
+def fwd(cv, t):
+    """Step forward: from the stage line (F) to the front of the revealed floor, scaled about the centre seam."""
+    u = sstep((t - T_YANK) / (T_UP + 0.25 - T_YANK))
+    if u <= 0: return
+    s_ = 1 + (FWD_S - 1) * u
+    cv.translate(W / 2, F + FWD_DY * u); cv.scale(s_, s_); cv.translate(-W / 2, -F)
+
 def camera(t):
     z = 1.06 + 0.06 * sstep(t / T_SNAP) - 0.06 * sstep((t - T_SNAP) / 0.7)
     z += 0.10 * sstep((t - 10.8) / 3.4)
@@ -2003,8 +2011,6 @@ def render(t):
         bgi = background_image()
         cv.drawImage(bgi, 0, 0)
         draw_rain(cv, t)
-        sh_ = paint_fill(skia.Color4f(0, 0, 0, 0.45 * ff)); sh_.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, 10))
-        for mx in (b['xL'], b['xR']): cv.drawOval(skia.Rect.MakeXYWH(mx - 80, F - 12, 160, 26), sh_)
     if ff < 1:
         fp = skia.Paint(AntiAlias=True); fp.setAlphaf(1 - ff)
         fp.setShader(skia.GradientShader.MakeLinear([(0, F), (0, F + 520)], [skia.Color4f(0.075, 0.075, 0.08, 1).toColor(), skia.Color4f(0.01, 0.01, 0.012, 1).toColor()]))
@@ -2013,6 +2019,10 @@ def render(t):
         hp.setShader(skia.GradientShader.MakeLinear([(0, 0), (W, 0)], [0x00FFFFFF, 0x2EFFFFFF, 0x00FFFFFF]))
         cv.drawRect(skia.Rect.MakeLTRB(-300, F - 1, W + 300, F + 1), hp)
     draw_curtains(cv, t, sstep((t - 3.0) / 0.5))
+    cv.save(); fwd(cv, t)                       # models step forward onto the floor as the backgrounds come up
+    if t > T_YANK - 0.02:
+        sh_ = paint_fill(skia.Color4f(0, 0, 0, 0.45 * ff)); sh_.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, 10))
+        for mx in (b['xL'], b['xR']): cv.drawOval(skia.Rect.MakeXYWH(mx - 80, F - 12, 160, 26), sh_)
     cv.saveLayer()
     cv.save(); cv.translate(0, 2 * F); cv.scale(1, -1)
     cv.drawImage(img, 0, 0, skia.SamplingOptions(), skia.Paint(AntiAlias=True, Alpha=int(255 * 0.30)))
@@ -2031,6 +2041,7 @@ def render(t):
     cv.drawImageRect(small.makeImageSnapshot(), skia.Rect.MakeWH(W, H), skia.SamplingOptions(skia.FilterMode.kLinear), skia.Paint(Alpha=int(255 * 0.75), BlendMode=skia.BlendMode.kPlus))
     cv.drawImageRect(med.makeImageSnapshot(), skia.Rect.MakeWH(W, H), skia.SamplingOptions(skia.FilterMode.kLinear), skia.Paint(Alpha=int(255 * 0.35), BlendMode=skia.BlendMode.kPlus))
     cv.drawImage(img, 0, 0)
+    cv.restore()
     for t0, rmax, dur, burst in ((T_SNAP, 900, 0.45, True),):
         v = t - t0
         if 0 <= v < dur:
@@ -2055,10 +2066,12 @@ def render(t):
     if 0 <= t - T_POOF < 0.45:   # stylists vanish in a puff
         v = (t - T_POOF) / 0.45
         for cx_ in (gf_hipx(T_POOF), W - gf_hipx(T_POOF)):
+            cv.save(); fwd(cv, t)
             for k_ in range(9):
                 a_ = k_ / 9 * 2 * math.pi + 0.4
                 pr = 20 + 90 * ease_out(v)
                 cv.drawCircle(cx_ + math.cos(a_) * pr, F - 230 + math.sin(a_) * pr * 0.9, 16 * (1 - v) + 4, paint_fill(skia.Color4f(1, 1, 1, 0.55 * (1 - v))))
+            cv.restore()
 
     # ---- text ----
     tc = tsurf.getCanvas(); tc.clear(skia.Color4f(0, 0, 0, 0))
