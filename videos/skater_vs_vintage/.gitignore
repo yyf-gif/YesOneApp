@@ -1,0 +1,4 @@
+frames/
+__pycache__/
+still_*.png
+*.mp4
